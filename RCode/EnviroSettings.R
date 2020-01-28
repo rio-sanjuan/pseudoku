@@ -15,7 +15,6 @@ suppressPackageStartupMessages({
   
   # core packages
   library(tidyverse)
-  library(tidymodels)
   
   # additional packages
   library(lubridate)
