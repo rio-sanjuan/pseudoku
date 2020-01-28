@@ -11,6 +11,54 @@
 ## Create Board
 ## =========================================
 
+CreateBoard <- function(seed = 42, debug = FALSE) {
+  
+  # Debugger
+  if (debug) browser()
+  # set.seed(seed)
+  
+  board <- expand.grid(1:9, 1:9) %>% 
+    transmute(Row = Var1, Column = Var2, Value = NA) %>% 
+    mutate(
+      Group = case_when(
+        between(Row, 1, 3) & between(Column, 1, 3) ~ 1,
+        between(Row, 1, 3) & between(Column, 4, 6) ~ 2,
+        between(Row, 1, 3) & between(Column, 7, 9) ~ 3,
+        between(Row, 4, 6) & between(Column, 1, 3) ~ 4,
+        between(Row, 4, 6) & between(Column, 4, 6) ~ 5,
+        between(Row, 4, 6) & between(Column, 7, 9) ~ 6,
+        between(Row, 7, 9) & between(Column, 1, 3) ~ 7,
+        between(Row, 7, 9) & between(Column, 4, 6) ~ 8,
+        between(Row, 7, 9) & between(Column, 7, 9) ~ 9))
+  
+  digit.queue <- sample(rep(1:9, 9))
+  for (digit in digit.queue) {
+    
+    considerations <- board %>% 
+      filter(
+        is.na(Value)
+        , !Row    %in% board[board$Value == digit, "Row"]
+        , !Column %in% board[board$Value == digit, "Column"]
+        , !Group  %in% board[board$Value == digit, "Group"])
+    
+    if (nrow(considerations) >= 1) {
+      insert.spot <- sample_n(considerations, 1)
+      
+      board$Value <- ifelse(
+        test = board$Row == insert.spot$Row & board$Column == insert.spot$Column,
+        yes  = digit, 
+        no   = board$Value
+      )
+    } # else browser()
+  }
+  
+  return(board)
+}
+
+## =========================================
+## Print Board
+## =========================================
+
 PrintBoard <- function(board, debug = FALSE) {
   
   # Debugger
@@ -48,47 +96,3 @@ PrintBoard <- function(board, debug = FALSE) {
   return(p)
   
 }
-
-## =========================================
-## Create Board
-## =========================================
-
-# CreateBoard <- function(seed = 42, debug = FALSE) {
-#   
-#   # Debugger
-#   if (debug) browser()
-#   
-#   # Create blank board
-#   blank.board <- matrix(nrow = 9, ncol = 9)
-#   
-#   digits.available <- sample(rep(1:9, 9))
-#   spots.available  <- do.call(paste0, expand.grid(1:9, 1:9))
-#   
-#   for (digit in digits.available) {
-#     
-#     unfilled <- TRUE
-#     
-#     for (consider.row in sample(1:9)) {
-#       for (consider.column in sample(1:9)) {
-#         
-#         condition.1 <- is.na(blank.board[consider.row, consider.column])
-#         condition.2 <- !digit %in% blank.board[, consider.column]
-#         condition.3 <- !digit %in% blank.board[consider.row,]
-#         condition.4 <- !digit %in% blank.board[1:3 + 3 * (consider.row-1) %/% 3, 
-#                                                1:3 + 3 * (consider.column-1) %/% 3]
-#         
-#         if (condition.1 & condition.2 & condition.3 & condition.4) {
-#           # place digit on board
-#           blank.board[consider.row, consider.column] <- digit
-#           
-#           # set flag
-#           unfilled <- FALSE
-#         }
-#         
-#         
-#       }
-#     }
-#     
-#     if (unfilled) browser()
-#   }
-# }
