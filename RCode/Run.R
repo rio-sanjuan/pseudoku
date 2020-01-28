@@ -11,9 +11,10 @@
 ## Environment
 ## =========================================
 source("RCode/EnviroSettings.R")
-source("RCode/Functions/CreateBoard.R")
+source("RCode/Functions.R")
 
 ## =========================================
 ## Run Program
 ## =========================================
 board <- CreateBoard(debug = TRUE)
+PrintBoard(board)
