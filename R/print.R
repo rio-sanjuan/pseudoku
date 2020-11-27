@@ -1,36 +1,40 @@
-PrintBoard <- function(board, debug = FALSE) {
+#' Print Board
+#' @export
+print_board <- function(board, .debug = FALSE) {
   
   # Debugger
-  if (debug) browser()
+  if (.debug) browser()
   
   # create plot data
-  plot.data <- mutate(board, Fill = is.na(Value))
+  plot.data <- dplyr::mutate(board, fill = is.na(val))
   
   # create base plot
-  p <- ggplot(plot.data, aes(x = Column, y = Row, group = Group)) + 
-    geom_tile(aes(fill = Fill), color = "black") + 
-    geom_text(aes(label = Value), na.rm = TRUE) + 
-    theme_void() + theme(legend.position = "none") + 
-    scale_fill_manual(values = c("#eeeeee", "#c94038"))
+  p <- ggplot2::ggplot(plot.data, ggplot2::aes(x = col, y = row, group = group)) + 
+    ggplot2::geom_tile(ggplot2::aes(fill = fill), color = "black") + 
+    ggplot2::geom_text(ggplot2::aes(label = val), na.rm = TRUE) + 
+    ggplot2::theme_void() + ggplot2::theme(legend.position = "none") + 
+    ggplot2::scale_fill_manual(values = c("#eeeeee", "#c94038"))
   
   # add group bars
-  gb <- ggplot_build(p) %>% 
+  gb <- ggplot2::ggplot_build(p) %>% 
     `[[`(1) %>% `[[`(1) %>% 
-    group_by(group) %>% 
-    summarize(
+    dplyr::group_by(group) %>% 
+    dplyr::summarize(
       x1 = min(xmin), 
       x2 = max(xmax), 
       y1 = min(ymin), 
-      y2 = max(ymax))
+      y2 = max(ymax)
+    )
   
   # update plot object
-  p <- p + geom_rect(
+  p <- p + ggplot2::geom_rect(
     data = gb
-    , aes(xmin = x1, xmax = x2, ymin = y1, ymax = y2)
+    , ggplot2::aes(xmin = x1, xmax = x2, ymin = y1, ymax = y2)
     , color="black"
     , size = 1
     , fill = NA
-    , inherit.aes = FALSE)
+    , inherit.aes = FALSE
+  )
   
   return(p)
   
