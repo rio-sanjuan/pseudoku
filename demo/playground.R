@@ -1,7 +1,7 @@
 
 
 
-board <- CreateBoard(debug = TRUE)
+board <- create_board()
 PrintBoard(board)
 
 
