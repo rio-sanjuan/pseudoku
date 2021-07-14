@@ -1,0 +1,193 @@
+
+#' Tibble constructor and validator
+#'
+#' @description
+#' Creates or validates a subclass of a tibble.
+#' These function is mostly useful for package authors that implement subclasses
+#' of a tibble, like \pkg{sf} or \pkg{tsibble}.
+#'
+#' `new_tibble()` creates a new object as a subclass of `tbl_df`, `tbl` and `data.frame`.
+#' This function is optimized for performance, checks are reduced to a minimum.
+#'
+#' @param x A tibble-like object.
+#' @param ... Name-value pairs of additional attributes.
+#' @param nrow The number of rows, required.
+#' @param class Subclasses to assign to the new object, default: none.
+#' @param subclass Deprecated, retained for compatibility. Please use the `class` argument.
+#'
+#' @seealso
+#' [tibble()] and [as_tibble()] for ways to construct a tibble
+#' with recycling of scalars and automatic name repair.
+#'
+#' @export
+#' @examples
+#' # The nrow argument is always required:
+#' new_tibble(list(a = 1:3, b = 4:6), nrow = 3)
+#'
+#' # Existing row.names attributes are ignored:
+#' try(validate_tibble(new_tibble(iris, nrow = 3)))
+#'
+#' # The length of all columns must be compatible with the nrow argument:
+#' try(validate_tibble(new_tibble(list(a = 1:3, b = 4:6), nrow = 2)))
+new_board <- function(x, ..., nrow, class = NULL, subclass = NULL) {
+  
+  #' @section Construction:
+  #'
+  #' For `new_board()`, `x` must be a list.
+  x <- unclass(x)
+  
+  if (!is.list(x)) {
+    cnd_signal(error_new_tibble_must_be_list())
+  }
+  
+  #' The `...` argument allows adding more attributes to the subclass.
+  x <- update_tibble_attrs(x, ...)
+  
+  #' An `nrow` argument is required.
+  if (missing(nrow)) {
+    cnd <- error_new_tibble_needs_nrow()
+    if (length(x) >= 1) {
+      deprecate_soft("2.0.0", "tibble::new_tibble(nrow = 'can\\'t be missing')",
+                     details = cnd$message)
+      nrow <- vec_size(x[[1]])
+    } else {
+      cnd_signal(cnd)
+    }
+  }
+  #' This should be an integer of length 1,
+  #' and every element of the list `x` should have [vctrs::vec_size()]
+  #' equal to this value.
+  #' (But this is not checked by the constructor).
+  #' This takes the place of the "row.names" attribute in a data frame.
+  if (!is_integerish(nrow, 1)) {
+    cnd_signal(error_new_tibble_needs_nrow())
+  }
+  
+  #' `x` must have names (or be empty),
+  #' but the names are not checked for correctness.
+  if (length(x) == 0) {
+    # Leaving this because creating a named list of length zero seems difficult
+    names(x) <- character()
+  } else if (is.null(names(x))) {
+    cnd_signal(error_names_must_be_non_null())
+  }
+  
+  set_tibble_subclass(x, nrow, class)
+}
+
+#' @description
+#' `validate_tibble()` checks a tibble for internal consistency.
+#' Correct behavior can be guaranteed only if this function
+#' runs without raising an error.
+#'
+#' @rdname new_tibble
+#' @export
+validate_board <- function(x) {
+  #' @section Validation:
+  #' `validate_tibble()` checks for "minimal" names
+  check_minimal_names(x)
+  
+  #' and that all columns are vectors, data frames or matrices.
+  check_valid_cols(unclass(x))
+  
+  #' It also makes sure that all columns have the same length,
+  #' and that [vctrs::vec_size()] is consistent with the data.
+  validate_nrow(names(x), col_lengths(x), vec_size(x))
+  
+  x
+}
+
+check_minimal <- function(name) {
+  cnd_signal_if(cnd_names_non_null(name))
+  cnd_signal_if(cnd_names_non_na(name))
+}
+
+check_minimal_names <- function(x) {
+  check_minimal(names(x))
+  invisible(x)
+}
+
+col_lengths <- function(x) {
+  map_int(x, vec_size)
+}
+
+validate_nrow <- function(names, lengths, nrow) {
+  # Validate column lengths, don't recycle
+  bad_len <- which(lengths != nrow)
+  if (has_length(bad_len)) {
+    cnd_signal(error_incompatible_size(nrow, names, lengths, "Requested with `nrow` argument"))
+  }
+}
+
+update_tibble_attrs <- function(x, ...) {
+  .Call(`tibble_update_attrs`, x, pairlist2(...))
+}
+
+tibble_class <- c("tbl_df", "tbl", "data.frame")
+
+# Two dedicated functions for faster creation
+set_tibble_subclass <- function(x, nrow, subclass) {
+  attr(x, "row.names") <- .set_row_names(nrow)
+  class(x) <- c(setdiff(subclass, tibble_class), tibble_class)
+  x
+}
+
+# Errors ------------------------------------------------------------------
+
+error_new_tibble_must_be_list <- function() {
+  tibble_error("`x` must be a list.")
+}
+
+error_new_tibble_needs_nrow <- function() {
+  tibble_error("`x` must be a scalar integer.")
+}
+
+#' Create Empty Board
+#' @export
+create_board <- function(.seed = NA, .debug = FALSE) {
+  
+  if (!is.na(.seed)) set.seed(.seed)
+  if (.debug) browser()
+  
+  board <- 
+    expand.grid(1:9, 1:9) %>% 
+    dplyr::transmute(row = Var1, col = Var2, val = NA) %>% 
+    dplyr::mutate(
+      group = dplyr::case_when(
+        dplyr::between(row, 1, 3) & dplyr::between(col, 1, 3) ~ 1,
+        dplyr::between(row, 1, 3) & dplyr::between(col, 4, 6) ~ 2,
+        dplyr::between(row, 1, 3) & dplyr::between(col, 7, 9) ~ 3,
+        dplyr::between(row, 4, 6) & dplyr::between(col, 1, 3) ~ 4,
+        dplyr::between(row, 4, 6) & dplyr::between(col, 4, 6) ~ 5,
+        dplyr::between(row, 4, 6) & dplyr::between(col, 7, 9) ~ 6,
+        dplyr::between(row, 7, 9) & dplyr::between(col, 1, 3) ~ 7,
+        dplyr::between(row, 7, 9) & dplyr::between(col, 4, 6) ~ 8,
+        dplyr::between(row, 7, 9) & dplyr::between(col, 7, 9) ~ 9
+      )
+    )
+  
+  digit.queue <- sample(rep(1:9, 9))
+  for (digit in digit.queue) {
+    
+    considerations <- board %>% 
+      dplyr::filter(
+        is.na(val)
+        , !row %in% board[board$val == digit, "row"]
+        , !col %in% board[board$val == digit, "col"]
+        , !group  %in% board[board$val == digit, "group"]
+      )
+    
+    if (nrow(considerations) >= 1) {
+      insert.spot <- dplyr::sample_n(considerations, 1)
+      ?setOl
+      board$val <- 
+        ifelse(
+          test = board$row == insert.spot$row & board$col == insert.spot$col
+          , yes = digit
+          , no  = board$val
+        )
+    }
+  }
+  
+  board
+}

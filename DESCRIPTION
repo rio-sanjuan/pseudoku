@@ -15,5 +15,7 @@ Imports:
     magrittr,
     ggplot2,
     hexSticker,
-    badger
+    badger,
+    mockr,
+    pillar
 RoxygenNote: 7.1.1
